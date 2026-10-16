@@ -6,13 +6,13 @@
 
 ## Команда
 
-- Салахетдинов Камиль (@KamilS25) — тимлид / Product Owner, Tech Lead / Backend Developer; выполняет учебные позиции №1 и №2.
-- Богаенко Елизавета — Frontend Developer.
-- Сулейманова Виктория — DevOps Engineer.
+- Салахетдинов Камиль (@KamilS25) — тимлид / Product Owner, Tech Lead / Backend Developer.
+- Богаенко Елизавета (@ka-chow) — Frontend Developer.
+- Сулейманова Виктория (@vst-17) — DevOps Engineer.
 
 ## Стек технологий
 
-- Python 3.13 — целевая версия команды; у Камиля проверена версия 3.13.16.
+- Python 3.13 — целевая версия команды
 - FastAPI
 - PostgreSQL
 - Docker
