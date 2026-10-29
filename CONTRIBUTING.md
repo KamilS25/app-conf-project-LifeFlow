@@ -1,9 +1,9 @@
 # Правила работы в команде
 
 ## Git-стратегия
-
-Стратегия ветвления выбирается на воркшопе №2 и фиксируется в ADR 001.
-До этого: ветки `feature/<кратко>` создаются от `main`, изменения попадают в `main` только через Pull Request.
+Мы используем **GitHub Flow**.
+Схема: `main` (стабильная) -> `feature/<название>` (разработка) -> PR -> `main`.
+Документы процесса (`docs/*`) вливаются в `main` через PR.
 
 ### Ветвление
 
@@ -37,13 +37,37 @@
 - Канал связи: командный чат в Telegram. Ссылка на чат в репозитории не размещена; по вопросам доступа обращайтесь к тимлиду.
 - Время ответа на сообщения: в течение 24 часов.
 
+## Разрешение конфликтов (в команде)
+1. Обсуждение
+2. Голосование
+3. Обращение к преподавателю
+
 ## Разрешение конфликтов
 
-1. Обсуждение в команде
-2. Голосование (большинство голосов)
-3. Если не можем решить — обращаемся к преподавателю
+Если GitHub пишет `This branch has conflicts`:
+1. `git checkout <ваша-ветка>`
+2. `git fetch origin`
+3. `git merge origin/main`
+4. В файлах убрать маркеры `<<<<<<<`, `=======`, `>>>>>>>`, оставить нужное.
+5. `git add <файл>`
+6. `git commit -m "chore: resolve merge conflict with main"`
+7. `git push`
+Затем нажать **Re-request review** на GitHub.
+
+## Защита ветки
+Включены правила: Restrict deletions, Block force pushes, Require a pull request (1 approval), Dismiss stale approvals, Require conversation resolution.
+Текст отказа при прямом push:
+> remote: error: GH013: Repository rule violations found for refs/heads/main.
+> remote: - Changes must be made through a pull request.
+> remote: - Cannot force-push to this branch.
+
+> TODO (модуль 3): после появления CI-пайплайна включить "Require status checks to pass".
+
+## Как запустить тесты
+TODO (модуль 3): тестов пока нет, раздел появится вместе с ними.
+
 
 ## Контакты
-
 - Тимлид: Салахетдинов Камиль — Telegram: [@Kamil2577](https://t.me/Kamil2577).
-- Tech Lead: Салахетдинов Камиль — Telegram: [@Kamil2577](https://t.me/Kamil2577).
+- DevOps Engineer: Сулейманова Виктория.
+- Frontend Developer: Богаенко Елизавета.
