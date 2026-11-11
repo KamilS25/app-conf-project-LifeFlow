@@ -46,3 +46,4 @@
 | `GET /` | `{"message": "Hello World"}` | Проверка, что приложение отвечает |
 | `GET /health` | `{"status": "healthy"}` | Health-check: приложение живо |
 | `GET /docs` | Страница Swagger UI | Документация API, FastAPI генерирует её автоматически |
+| `GET /version` | `{"version": "0.2.0", "team": "LifeFlow"}` | Информация о версии приложения и команде |
