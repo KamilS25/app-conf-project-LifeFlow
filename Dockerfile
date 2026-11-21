@@ -1,20 +1,31 @@
-FROM python:3.13-slim
+ARG PYTHON_VERSION=3.13
+FROM python:${PYTHON_VERSION}-slim AS builder
 
 WORKDIR /app
 
-COPY --from=ghcr.io/astral-sh/uv:0.13.7 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.13.7 /uv /bin/uv
 
-ENV UV_COMPILE_BYTECODE=1
-ENV UV_LINK_MODE=copy
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+ENV UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never
 
 COPY pyproject.toml uv.lock ./
 
-RUN uv sync --locked --no-dev --no-install-project
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-dev --no-install-project
 
-COPY . .
+FROM python:${PYTHON_VERSION}-slim AS runtime
 
+WORKDIR /app
+ENV PATH="/app/.venv/bin:$PATH" PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+
+RUN groupadd --system lifeflow \
+    && useradd --system --gid lifeflow --no-create-home lifeflow
+
+COPY --from=builder /app/.venv .venv
+COPY main.py settings.py pyproject.toml ./
+
+USER lifeflow
 EXPOSE 8000
+HEALTHCHECK --interval=5s --timeout=5s --start-period=10s --retries=5 \
+    CMD ["python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/health', timeout=4).close()"]
 
-CMD ["uv", "run", "--no-sync", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

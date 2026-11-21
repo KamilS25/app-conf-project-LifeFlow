@@ -166,9 +166,21 @@ error: failed to push some refs to 'https://github.com/KamilS25/app-conf-project
 
 ## Как запустить тесты
 
+Перед первым коммитом установите проверки. Для Gitleaks должен быть запущен Docker.
+
+```sh
+uv sync --locked
+uv run --locked python -X utf8 -m pre_commit install
+uv run --locked pre-commit run --all-files
+```
+
+Режим UTF-8 сохраняет путь к интерпретатору в Git-хуке, в том числе в каталогах Windows с кириллицей.
+
+Gitleaks проверяет изменения в индексе Git. Добавьте изменённые файлы через `git add` до запуска, если хотите проверить их до коммита. Для проверки полной Git-истории см. [ADR 003](docs/adr/003-configuration.md).
+
 На текущем этапе автоматические тесты проекта не настроены. Для ручной проверки поднимите стек по [инструкции запуска](README.md#запуск-через-docker-compose). Проверьте `GET /`, `GET /health` и маршруты, затронутые изменением. При работающей базе `/health` отвечает HTTP 200. Для проверки отказа остановите `db` в тестовом стеке и убедитесь, что `/health` отвечает HTTP 503, затем восстановите стек.
 
-Для запуска FastAPI без Compose используйте `uv sync --locked` и `uv run --locked uvicorn main:app --reload`. Для успешного запроса к `/health` такому процессу нужны доступная PostgreSQL и `DATABASE_URL` в окружении.
+Для [запуска FastAPI без Compose](README.md#локальный-запуск-без-docker) задайте `DATABASE_URL` до старта процесса и используйте `uv run --locked uvicorn main:app --reload`.
 
 > TODO (модуль 3): добавить автоматические тесты и описать команду их запуска.
 

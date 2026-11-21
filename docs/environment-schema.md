@@ -43,7 +43,7 @@ flowchart LR
 
 | Сервис | Образ или сборка | Порты `хост:контейнер` | Переменные окружения (только имена, без значений) | Тома | Зависит от (условие) | Healthcheck |
 |---|---|---|---|---|---|---|
-| app | `build: .` | `127.0.0.1:${APP_PORT:-8000}:8000` | `DATABASE_URL`, `PGDATABASE`, `PGUSER`, `PGPASSWORD` | — | `db` (`service_healthy`) | HTTP-запрос к `/health` |
+| app | `build: .` | `127.0.0.1:${APP_PORT:-8000}:8000` | `APP_ENV`, `DATABASE_URL`, `PGDATABASE`, `PGUSER`, `PGPASSWORD` | — | `db` (`service_healthy`) | `HEALTHCHECK` образа вызывает `/health` |
 | db | `postgres:17` | Не публикуется. В сети Compose доступен порт 5432 | `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` | `postgres_data:/var/lib/postgresql/data` | — | `pg_isready` по TCP на `127.0.0.1` |
 
 Дополнительные сервисы не используются.
@@ -58,7 +58,7 @@ flowchart LR
 
 `postgresql://db:5432`
 
-`DATABASE_URL` определяет адрес сервиса. Драйвер берёт имя базы, пользователя и пароль из `PGDATABASE`, `PGUSER` и `PGPASSWORD`. Compose берёт эти значения из тех же переменных `POSTGRES_*`, которые получает PostgreSQL.
+`DATABASE_URL` определяет адрес сервиса. Модуль настроек получает имя базы, пользователя и пароль из `PGDATABASE`, `PGUSER` и `PGPASSWORD`. Compose берёт эти значения из тех же переменных `POSTGRES_*`, которые получает PostgreSQL. `APP_ENV` управляет доступностью документации API.
 
 Имя хоста `db` соответствует имени сервиса PostgreSQL в `compose.yaml`. Использование `localhost` внутри контейнера приложения не подходит, поскольку у контейнеров собственные сетевые пространства.
 
