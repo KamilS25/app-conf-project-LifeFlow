@@ -30,29 +30,38 @@
 Для запуска проекта необходимы:
 
 - Git;
-- Docker Desktop с поддержкой Docker Compose.
+- Docker с плагином Compose или Docker Desktop.
+- Свободный локальный порт 8000. Его можно изменить в `.env`.
 
 ### Запуск через Docker Compose
 
 1. Клонируйте репозиторий и перейдите в его каталог:
 
-   ```powershell
+   ```sh
    git clone https://github.com/KamilS25/app-conf-project-LifeFlow.git
    cd app-conf-project-LifeFlow
    ```
 
-2. Создайте локальный файл конфигурации на основе примера:
+   При проверке открытого PR переключитесь на его ветку перед запуском.
+
+2. Создайте локальный файл конфигурации на основе примера. В macOS, Linux или Git Bash:
+
+   ```sh
+   cp .env.example .env
+   ```
+
+   В PowerShell:
 
    ```powershell
    Copy-Item .env.example .env
    ```
 
-3. Откройте `.env` и замените значение `POSTGRES_PASSWORD` на собственный пароль. Не публикуйте файл `.env` и не добавляйте его в Git.
+3. Задайте собственный `POSTGRES_PASSWORD` в `.env`. Если пароль содержит `$` или `#`, заключите значение в одинарные кавычки. Храните файл только локально.
 
 4. Соберите образы и запустите приложение вместе с базой данных:
 
-   ```powershell
-   docker compose up --build -d
+   ```sh
+   docker compose up --build --wait
    ```
 
 При запуске Docker Compose поднимает два сервиса:
@@ -60,54 +69,35 @@
 - `app` — FastAPI-приложение;
 - `db` — PostgreSQL 17.
 
-Приложение запускается после проверки готовности базы данных. Данные PostgreSQL сохраняются в именованном томе `postgres_data`.
+Приложение запускается после проверки готовности базы данных. Флаг `--wait` дожидается успешных проверок обоих сервисов. Данные PostgreSQL сохраняются в именованном томе `postgres_data`.
 
 ### Проверка работоспособности
 
 Проверить состояние контейнеров:
 
-```powershell
+```sh
 docker compose ps
 ```
 
-Проверить доступность приложения:
+В выводе `app` и `db` должны иметь статус `healthy`. Проверьте приложение и подключение к PostgreSQL:
 
 ```powershell
 Invoke-RestMethod http://localhost:8000/
-```
-
-Ожидаемый ответ:
-
-```json
-{
-  "message": "Hello World"
-}
-```
-
-Проверить приложение и подключение к PostgreSQL:
-
-```powershell
 Invoke-RestMethod http://localhost:8000/health
 ```
 
-Ожидаемый ответ:
+В macOS, Linux или Git Bash:
 
-```json
-{
-  "status": "healthy",
-  "database": "ok"
-}
+```sh
+curl -fsS http://localhost:8000/
+curl -fsS http://localhost:8000/health
 ```
 
-Если приложение или база данных недоступны, эндпоинт `/health` возвращает HTTP 503.
-
-Документация API доступна по адресу:
-
-`http://localhost:8000/docs`
+Оба запроса возвращают HTTP 200. Тела ответов приведены в разделе [API](#api). При остановке PostgreSQL `/health` возвращает HTTP 503, а `/` продолжает отвечать HTTP 200.
 
 ### Настройка портов
 
-По умолчанию приложение доступно на порту `8000`, PostgreSQL — на порту `5432`.
+По умолчанию приложение доступно с этого компьютера на `localhost:8000`. PostgreSQL доступна приложению внутри сети Compose на `db:5432`.
 
 Если порт приложения занят, измените `APP_PORT` в `.env`, например:
 
@@ -117,25 +107,27 @@ APP_PORT=8001
 
 После изменения конфигурации перезапустите стек:
 
-```powershell
-docker compose up -d
+```sh
+docker compose up --wait
 ```
+
+В запросах и адресе Swagger UI используйте новый порт.
 
 ### Просмотр логов и остановка
 
 Просмотр логов всех сервисов:
 
-```powershell
+```sh
 docker compose logs -f
 ```
 
 Остановка контейнеров:
 
-```powershell
+```sh
 docker compose down
 ```
 
-Команда `docker compose down` сохраняет данные PostgreSQL в именованном томе. Команда `docker compose down -v` дополнительно удаляет том и все хранящиеся в нём данные.
+Команда `docker compose down` сохраняет данные PostgreSQL в именованном томе. Для повторной проверки чистого запуска используйте новый проект Compose с отдельным именем и свободным портом. Команда `docker compose down -v` удаляет том и все данные выбранного проекта.
 
 ### Локальный запуск без Docker
 
@@ -144,18 +136,18 @@ docker compose down
 Установка зависимостей:
 
 ```powershell
-uv sync
+uv sync --locked
 ```
 
 Запуск приложения:
 
 ```powershell
-uv run uvicorn main:app --reload
+uv run --locked uvicorn main:app --reload
 ```
 
 После запуска приложение доступно по адресу `http://localhost:8000`, документация API — `http://localhost:8000/docs`.
 
-Для успешной проверки `/health` при локальном запуске необходимо отдельно настроить доступную PostgreSQL и переменную окружения `DATABASE_URL`. Без подключения к базе данных эндпоинт возвращает HTTP 503.
+Для `/health` задайте `DATABASE_URL` в окружении процесса, указав адрес доступной с хоста PostgreSQL. Приложение, запущенное на хосте, не загружает Compose-файл `.env` автоматически. Если подключение к БД не удаётся, `/health` возвращает HTTP 503.
 
 ## Предметная область
 
@@ -175,7 +167,7 @@ uv run uvicorn main:app --reload
 | Метод и путь | Ответ | Назначение |
 |---|---|---|
 | `GET /` | `{"message": "Hello World"}` | Проверка доступности приложения |
-| `GET /health` | `{"status": "healthy", "database": "ok"}` | Проверка работоспособности приложения и подключения к PostgreSQL |
+| `GET /health` | `200` и `{"status": "healthy", "database": "ok"}` или `503` и `{"detail": "Service unavailable"}` | Проверка подключения к PostgreSQL запросом `SELECT 1` |
 | `GET /docs` | Страница Swagger UI | Автоматически генерируемая документация API FastAPI |
 
 ## Структура окружения
