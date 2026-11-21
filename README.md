@@ -17,6 +17,7 @@
 - PostgreSQL 17
 - Docker и Docker Compose
 - uv — менеджер зависимостей
+- pydantic-settings — конфигурация приложения
 - GitHub Actions
 
 ## Статус
@@ -61,7 +62,7 @@
 4. Соберите образы и запустите приложение вместе с базой данных:
 
    ```sh
-   docker compose up --build --wait
+   docker compose up --build
    ```
 
 При запуске Docker Compose поднимает два сервиса:
@@ -69,7 +70,7 @@
 - `app` — FastAPI-приложение;
 - `db` — PostgreSQL 17.
 
-Приложение запускается после проверки готовности базы данных. Флаг `--wait` дожидается успешных проверок обоих сервисов. Данные PostgreSQL сохраняются в именованном томе `postgres_data`.
+Приложение запускается после проверки готовности базы данных. Команда выводит логи в текущий терминал. Для фонового запуска с ожиданием готовности обоих сервисов используйте `docker compose up --build --wait`. Данные PostgreSQL сохраняются в именованном томе `postgres_data`.
 
 ### Проверка работоспособности
 
@@ -94,6 +95,12 @@ curl -fsS http://localhost:8000/health
 ```
 
 Оба запроса возвращают HTTP 200. Тела ответов приведены в разделе [API](#api). При остановке PostgreSQL `/health` возвращает HTTP 503, а `/` продолжает отвечать HTTP 200.
+
+### Окружения `dev` и `prod`
+
+Укажите `APP_ENV` в `.env`: `dev` включает Swagger UI (`/docs`), ReDoc (`/redoc`) и схему `/openapi.json`, а `prod` отключает эти три маршрута. После смены значения выполните `docker compose up --wait`. `GET /health` и `GET /version` работают в обоих режимах.
+
+Пример использует `APP_ENV=dev`. Для отдельного локального файла `.env.prod` создайте его из `.env.example`, задайте собственный `POSTGRES_PASSWORD` и `APP_ENV=prod`, затем запустите `docker compose --env-file .env.prod up --build --wait`. Для параллельной проверки используйте другое имя проекта (`-p lifeflow-prod`) и свободный `APP_PORT`, чтобы у него был отдельный том и порт.
 
 ### Настройка портов
 
@@ -139,15 +146,17 @@ docker compose down
 uv sync --locked
 ```
 
-Запуск приложения:
+Перед запуском задайте `DATABASE_URL` в окружении процесса. Адрес должен указывать на PostgreSQL, доступную с хоста. Пример для локальной базы в PowerShell:
 
 ```powershell
+$env:DATABASE_URL = 'postgresql://localhost:5432/lifeflow'
+$env:PGUSER = 'lifeflow'
 uv run --locked uvicorn main:app --reload
 ```
 
-После запуска приложение доступно по адресу `http://localhost:8000`, документация API — `http://localhost:8000/docs`.
+Для базы с парольной аутентификацией также задайте `PGPASSWORD` в окружении своим значением. При необходимости укажите `DB_CONNECT_TIMEOUT` (по умолчанию 3 секунды). Приложение читает переменные процесса. Файл `.env` из инструкции Compose при таком запуске автоматически не загружается.
 
-Для `/health` задайте `DATABASE_URL` в окружении процесса, указав адрес доступной с хоста PostgreSQL. Приложение, запущенное на хосте, не загружает Compose-файл `.env` автоматически. Если подключение к БД не удаётся, `/health` возвращает HTTP 503.
+В режиме `dev` документация API доступна на `http://localhost:8000/docs`. Пустой или отсутствующий `DATABASE_URL` останавливает запуск. При заданном адресе и недоступной PostgreSQL `/health` возвращает HTTP 503.
 
 ## Предметная область
 
@@ -168,7 +177,7 @@ uv run --locked uvicorn main:app --reload
 |---|---|---|
 | `GET /` | `{"message": "Hello World"}` | Проверка доступности приложения |
 | `GET /health` | `200` и `{"status": "healthy", "database": "ok"}` или `503` и `{"detail": "Service unavailable"}` | Проверка подключения к PostgreSQL запросом `SELECT 1` |
-| `GET /docs` | Страница Swagger UI | Автоматически генерируемая документация API FastAPI |
+| `GET /docs` | Swagger UI в `dev`, HTTP 404 в `prod` | [Документация API](http://localhost:8000/docs) и [схема OpenAPI](http://localhost:8000/openapi.json) после запуска в `dev` |
 | `GET /version` | `{"version": "0.2.0", "team": "LifeFlow"}` | Информация о версии приложения и команде |
 
 ## Структура окружения
@@ -182,4 +191,5 @@ uv run --locked uvicorn main:app --reload
 - `pyproject.toml` — описание зависимостей проекта;
 - `uv.lock` — фиксация версий зависимостей;
 - `docs/environment-schema.md` — схема окружения проекта;
-- `docs/adr/002-dependency-manager.md` — архитектурное решение о выборе менеджера зависимостей.
+- `docs/adr/002-dependency-manager.md` — архитектурное решение о выборе менеджера зависимостей;
+- `docs/adr/003-configuration.md` — архитектурное решение о конфигурации и защите секретов.
