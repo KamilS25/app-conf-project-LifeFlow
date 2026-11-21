@@ -7,8 +7,9 @@ from fastapi import FastAPI, HTTPException
 app = FastAPI(
     title="LifeFlow",
     description="LifeFlow application",
-    version="0.1.0",
+    version="0.2.0",
 )
+TEAM_NAME = "LifeFlow"
 
 
 @app.get("/")
@@ -32,3 +33,9 @@ def health_check():
         raise HTTPException(status_code=503, detail="Service unavailable") from None
 
     return {"status": "healthy", "database": "ok"}
+
+
+@app.get("/version")
+async def version():
+    """Версия приложения и команда-владелец."""
+    return {"version": app.version, "team": TEAM_NAME}

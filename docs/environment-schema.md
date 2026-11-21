@@ -149,4 +149,3 @@ Invoke-RestMethod http://localhost:8000/health
 - `docs/environment-schema.md` — схема окружения проекта.
 
 Команды по созданию `.env`, запуску и остановке стека приведены в [README](../README.md#запуск-через-docker-compose). Выбор uv описан в [ADR 002](adr/002-dependency-manager.md).
-

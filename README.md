@@ -169,6 +169,7 @@ uv run --locked uvicorn main:app --reload
 | `GET /` | `{"message": "Hello World"}` | Проверка доступности приложения |
 | `GET /health` | `200` и `{"status": "healthy", "database": "ok"}` или `503` и `{"detail": "Service unavailable"}` | Проверка подключения к PostgreSQL запросом `SELECT 1` |
 | `GET /docs` | Страница Swagger UI | Автоматически генерируемая документация API FastAPI |
+| `GET /version` | `{"version": "0.2.0", "team": "LifeFlow"}` | Информация о версии приложения и команде |
 
 ## Структура окружения
 
