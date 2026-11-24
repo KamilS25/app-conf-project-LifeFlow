@@ -125,6 +125,7 @@ PR может получить Approval, если выполнены все ус
 - изменения только через Pull Request с минимум одним approval другого участника;
 - новые коммиты сбрасывают прежние approvals;
 - обсуждения должны быть закрыты до merge;
+- обязательные проверки GitHub Actions `lint` и `secrets` должны пройти на актуальной версии PR. Правило не требует предварительно обновлять ветку до последней версии `main`;
 - force-push и удаление ветки запрещены;
 - bypass-список пуст, в том числе владелец не обходит защиту;
 - автоматически удаляются слитые рабочие ветки.
@@ -162,7 +163,22 @@ error: failed to push some refs to 'https://github.com/KamilS25/app-conf-project
 
 Сервер подтвердил запрет force-push и требование Pull Request. После обоих экспериментов удалённый и локальный `main` остались на `664af89a658b8ad1cef75e2223213966ecddc550`; тестовые коммиты в `main` не попали.
 
-> TODO (модуль 3, практика №5): после появления CI-пайплайна включить в `protect-main` правило Require status checks to pass и выбрать обязательные проверки. До этого момента зелёный pipeline не является условием merge.
+### Проверка обязательного CI
+
+24.11.2026 в `protect-main` включили обязательные проверки `lint` и `secrets` от GitHub Actions. На коммите `259f970` GitHub вернул `BLOCKED` при красном `lint`. Обе проверки получили признак `isRequired: true`. [Подтверждение в PR №13](https://github.com/KamilS25/app-conf-project-LifeFlow/pull/13#issuecomment-7137978890)
+
+## Как запустить линтеры локально
+
+Используйте Python 3.13 из `.python-version` и uv. Выполните в корне проекта те же проверки, что и в CI:
+
+```sh
+uv sync --locked
+uv run --locked ruff check .
+uv run --locked ruff format --check .
+uv run --locked mypy .
+```
+
+Чтобы применить форматирование, запустите `uv run --locked ruff format .`. Если mypy сообщает ошибку, исправьте код и повторите проверку. [ADR 004](docs/adr/004-ci-pipeline.md)
 
 ## Как запустить тесты
 
