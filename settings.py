@@ -39,7 +39,7 @@ class Settings(BaseSettings):
             else None,
         }
         options = conninfo_to_dict(self.database_url.get_secret_value())
-        return make_conninfo(**(defaults | options))
+        return make_conninfo("", **(defaults | options))
 
 
 def load_settings() -> Settings:
