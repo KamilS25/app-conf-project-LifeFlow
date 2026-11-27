@@ -32,11 +32,18 @@ class TaskUpdate(TaskFields):
     status: TaskStatus
 
 
+class TaskStatusUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: TaskStatus
+
+
 class TaskResponse(TaskFields):
     model_config = ConfigDict(from_attributes=True)
 
     id: int = Field(examples=[1])
     status: TaskStatus = Field(examples=[TaskStatus.IN_PROGRESS])
+    goal_id: int | None
 
 
 class TaskValidationIssue(BaseModel):

@@ -251,7 +251,7 @@ uv run --locked pre-commit run --all-files
 
 Gitleaks проверяет изменения в индексе Git. Добавьте изменённые файлы через `git add` до запуска, если хотите проверить их до коммита. Для проверки полной Git-истории см. [ADR 003](docs/adr/003-configuration.md).
 
-Тесты CRUD запускаются на отдельной PostgreSQL. Настройте `LIFEFLOW_TEST_DATABASE_URL` по [инструкции в README](README.md#интеграционные-тесты-задач) и выполните `uv run --locked python -m pytest -q`.
+Интеграционные тесты запускаются на отдельной PostgreSQL. Настройте `LIFEFLOW_TEST_DATABASE_URL` по [инструкции в README](README.md#интеграционные-тесты) и выполните `uv run --locked python -m pytest -q`.
 
 Для ручной проверки поднимите стек по [инструкции запуска](README.md#запуск-через-docker-compose). Проверьте `GET /`, `GET /health` и маршруты, затронутые изменением. При работающей базе `/health` отвечает HTTP 200. Для проверки отказа остановите `db` в тестовом стеке и убедитесь, что `/health` отвечает HTTP 503, затем восстановите стек.
 
