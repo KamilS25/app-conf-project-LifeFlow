@@ -11,7 +11,9 @@ class Settings(BaseSettings):
 
     app_env: Literal["dev", "prod"] = Field(default="dev", validation_alias="APP_ENV")
     database_url: SecretStr = Field(validation_alias="DATABASE_URL")
-    db_connect_timeout: int = Field(default=3, ge=2, validation_alias="DB_CONNECT_TIMEOUT")
+    db_connect_timeout: int = Field(
+        default=3, ge=2, validation_alias="DB_CONNECT_TIMEOUT"
+    )
     pg_database: str | None = Field(default=None, validation_alias="PGDATABASE")
     pg_user: str | None = Field(default=None, validation_alias="PGUSER")
     pg_password: SecretStr | None = Field(default=None, validation_alias="PGPASSWORD")
@@ -32,16 +34,22 @@ class Settings(BaseSettings):
         defaults = {
             "dbname": self.pg_database,
             "user": self.pg_user,
-            "password": self.pg_password.get_secret_value() if self.pg_password else None,
+            "password": self.pg_password.get_secret_value()
+            if self.pg_password
+            else None,
         }
         options = conninfo_to_dict(self.database_url.get_secret_value())
-        return make_conninfo(**(defaults | options))
+        return make_conninfo("", **(defaults | options))
 
 
 def load_settings() -> Settings:
     try:
         return Settings()
     except ValidationError as error:
-        fields = error.errors(include_input=False, include_context=False, include_url=False)
+        fields = error.errors(
+            include_input=False, include_context=False, include_url=False
+        )
         variables = ", ".join(str(field["loc"][0]) for field in fields)
-        raise SystemExit(f"Missing or invalid environment variables: {variables}") from None
+        raise SystemExit(
+            f"Missing or invalid environment variables: {variables}"
+        ) from None
