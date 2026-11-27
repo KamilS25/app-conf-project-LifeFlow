@@ -1,47 +1,10 @@
-import os
-from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
-from uuid import uuid4
 
 import psycopg
-import pytest
-from alembic import command
-from alembic.config import Config
 from fastapi.testclient import TestClient
-from psycopg import sql
-from psycopg.conninfo import make_conninfo
 
 from app.application import create_app
 from settings import load_settings
-
-
-@pytest.fixture
-def database(monkeypatch: pytest.MonkeyPatch) -> Iterator[str]:
-    test_url = os.environ.get("LIFEFLOW_TEST_DATABASE_URL")
-    if not test_url:
-        pytest.skip("Set LIFEFLOW_TEST_DATABASE_URL to a PostgreSQL test database")
-
-    schema = f"lifeflow_test_{uuid4().hex}"
-    conninfo = make_conninfo(test_url, options=f"-c search_path={schema}")
-    with psycopg.connect(test_url, autocommit=True) as admin:
-        admin.execute(sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(schema)))
-        try:
-            monkeypatch.setenv("DATABASE_URL", conninfo)
-            monkeypatch.setenv("APP_ENV", "dev")
-            config_path = Path(__file__).resolve().parents[1] / "alembic.ini"
-            command.upgrade(Config(str(config_path)), "head")
-            yield conninfo
-        finally:
-            admin.execute(
-                sql.SQL("DROP SCHEMA {} CASCADE").format(sql.Identifier(schema))
-            )
-
-
-@pytest.fixture
-def client(database: str) -> Iterator[TestClient]:
-    with TestClient(create_app(load_settings())) as test_client:
-        yield test_client
 
 
 def test_task_lifecycle(client: TestClient) -> None:
@@ -71,6 +34,7 @@ def test_task_lifecycle(client: TestClient) -> None:
         "description": None,
         "status": "done",
         "due_date": None,
+        "goal_id": None,
     }
     assert client.get(path).json() == response.json()
 
@@ -156,16 +120,32 @@ def test_openapi_documents_task_responses(client: TestClient) -> None:
     assert "404" in removal
 
 
-def test_task_routes_are_only_available_in_development(database: str) -> None:
+def test_production_requires_authentication_and_hides_debug_routes(
+    database: str,
+) -> None:
     settings = load_settings().model_copy(update={"app_env": "prod"})
-    with TestClient(create_app(settings)) as client:
-        assert client.get("/tasks").status_code == 404
-        assert client.post("/tasks", json={"title": "Hidden"}).status_code == 404
+    with TestClient(
+        create_app(settings),
+        base_url="https://testserver",
+        headers={"X-LifeFlow-Request": "1"},
+    ) as client:
+        assert client.get("/tasks").status_code == 401
+        assert client.post("/auth/demo").status_code == 404
         assert client.get("/openapi.json").status_code == 404
         assert client.get("/health").status_code == 200
+        response = client.post(
+            "/auth/register",
+            json={
+                "email": "production@example.com",
+                "password": "synthetic account password",
+            },
+        )
+        assert response.status_code == 201
+        assert "Secure" in response.headers["set-cookie"]
+        assert client.post("/tasks", json={"title": "Private task"}).status_code == 201
 
 
-def test_concurrent_creation_reuses_one_demo_owner(
+def test_concurrent_creation_stays_with_signed_in_owner(
     client: TestClient, database: str
 ) -> None:
     def create_task(number: int) -> int:

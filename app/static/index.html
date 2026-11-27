@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>LifeFlow</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script type="module" src="/static/lifeflow.js"></script>
+</head>
+<body>
+  <a class="skip" href="#content">К основному содержанию</a>
+  <header class="topbar">
+    <div class="shell topbar-inner">
+      <a class="wordmark" href="#overview" aria-label="LifeFlow — обзор">Life<span class="wordmark-accent">Flow</span><span class="wordmark-dot" aria-hidden="true"></span></a>
+      <nav class="nav" aria-label="Разделы" hidden>
+        <a href="#overview" data-page="overview">Обзор</a>
+        <a href="#tasks" data-page="tasks">Задачи</a>
+        <a href="#goals" data-page="goals">Цели</a>
+        <a href="#finance" data-page="finance">Финансы</a>
+      </nav>
+      <div class="topbar-actions" id="account"></div>
+    </div>
+  </header>
+  <main class="shell" id="content" tabindex="-1" aria-busy="true">
+    <p class="loading" role="status">Загружаем LifeFlow…</p>
+  </main>
+  <div class="notice" id="notice" role="status" hidden></div>
+  <dialog id="editor" aria-labelledby="editor-title"></dialog>
+</body>
+</html>
