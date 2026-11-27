@@ -64,3 +64,99 @@ jobs:
           --env GIT_CONFIG_VALUE_0=/repo
           ghcr.io/gitleaks/gitleaks:v8.30.1
           git --redact=100 --no-banner --no-color --log-opts=--all .
+
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: lifeflow_ci
+          POSTGRES_USER: lifeflow_ci
+          POSTGRES_PASSWORD: ${{ github.run_id }}
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U lifeflow_ci -d lifeflow_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      APP_ENV: dev
+      PGUSER: lifeflow_ci
+      PGPASSWORD: ${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@v10.3.0
+        with:
+          version: "0.13.7"
+
+      - name: Install locked dependencies
+        run: uv sync --locked
+
+      - name: Configure test database
+        env:
+          POSTGRES_PORT: ${{ job.services.postgres.ports[5432] }}
+        run: echo "LIFEFLOW_TEST_DATABASE_URL=postgresql://127.0.0.1:${POSTGRES_PORT:?}/lifeflow_ci" >> "$GITHUB_ENV"
+
+      - name: Migrations
+        run: |
+          export DATABASE_URL="${LIFEFLOW_TEST_DATABASE_URL:?Test PostgreSQL URL is required}"
+          uv run --locked alembic upgrade head
+          uv run --locked alembic current
+
+      - name: pytest
+        run: uv run --locked python -m pytest -ra --cov --cov-report=term-missing
+
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Build Docker image
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}:sha-${GITHUB_SHA}"
+          docker build --tag "$image" \
+            --label "org.opencontainers.image.source=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" \
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}" .
+
+      - name: Save Docker image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: docker save --output lifeflow-image.tar "ghcr.io/${GITHUB_REPOSITORY,,}:sha-${GITHUB_SHA}"
+
+      - name: Upload Docker image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lifeflow-image-${{ github.sha }}
+          path: lifeflow-image.tar
+          retention-days: 7
+          if-no-files-found: error
+          overwrite: true
+
+  publish:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [lint, secrets, test, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      packages: write
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          name: lifeflow-image-${{ github.sha }}
+
+      - name: Push image to GHCR
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          docker load --input lifeflow-image.tar
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          docker push "ghcr.io/${GITHUB_REPOSITORY,,}:sha-${GITHUB_SHA}"

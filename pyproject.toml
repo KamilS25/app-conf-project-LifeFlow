@@ -17,8 +17,13 @@ dev = [
     "mypy==2.4.0",
     "pre-commit>=4,<5",
     "pytest>=8,<10",
+    "pytest-cov>=7.1.0",
     "ruff==0.17.1",
 ]
 
 [tool.mypy]
 plugins = ["pydantic.mypy"]
+
+[tool.coverage.run]
+source = ["."]
+omit = [".venv/*", "migrations/*", "tests/*"]
