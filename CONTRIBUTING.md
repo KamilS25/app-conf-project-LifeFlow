@@ -125,7 +125,7 @@ PR может получить Approval, если выполнены все ус
 - изменения только через Pull Request с минимум одним approval другого участника;
 - новые коммиты сбрасывают прежние approvals;
 - обсуждения должны быть закрыты до merge;
-- обязательные проверки GitHub Actions `lint` и `secrets` должны пройти на актуальной версии PR. Правило не требует предварительно обновлять ветку до последней версии `main`;
+- обязательные проверки GitHub Actions `lint`, `secrets`, `test` и `build` должны пройти на актуальной версии PR. Правило не требует предварительно обновлять ветку до последней версии `main`;
 - force-push и удаление ветки запрещены;
 - bypass-список пуст, в том числе владелец не обходит защиту;
 - автоматически удаляются слитые рабочие ветки.
@@ -180,7 +180,64 @@ uv run --locked mypy .
 
 Чтобы применить форматирование, запустите `uv run --locked ruff format .`. Если mypy сообщает ошибку, исправьте код и повторите проверку. [ADR 004](docs/adr/004-ci-pipeline.md)
 
-## Как запустить тесты
+## Как запустить тесты локально
+
+Запустите отдельный контейнер PostgreSQL 17. Docker выберет свободный порт на `127.0.0.1`. Понадобятся Docker, uv и Python из `.python-version`.
+
+### Bash
+
+```sh
+uv sync --locked
+test_password=$(uv run --locked python -c 'import secrets; print(secrets.token_hex(16))')
+POSTGRES_PASSWORD="$test_password" docker run -d --name lifeflow-tests \
+  -e POSTGRES_PASSWORD -e POSTGRES_USER=lifeflow_test -e POSTGRES_DB=lifeflow_test \
+  -p 127.0.0.1::5432 postgres:17
+```
+
+Дождитесь ответа `accepting connections` от `docker exec lifeflow-tests pg_isready -h 127.0.0.1 -U lifeflow_test -d lifeflow_test`. Затем выполните:
+
+```sh
+endpoint=$(docker port lifeflow-tests 5432/tcp)
+export LIFEFLOW_TEST_DATABASE_URL="postgresql://lifeflow_test:${test_password}@${endpoint}/lifeflow_test"
+DATABASE_URL="$LIFEFLOW_TEST_DATABASE_URL" uv run --locked alembic upgrade head
+uv run --locked python -m pytest -ra --cov --cov-report=term-missing
+docker rm -f lifeflow-tests
+unset LIFEFLOW_TEST_DATABASE_URL test_password endpoint
+```
+
+### PowerShell
+
+```powershell
+uv sync --locked
+$testPassword = uv run --locked python -c 'import secrets; print(secrets.token_hex(16))'
+docker run -d --name lifeflow-tests --env "POSTGRES_PASSWORD=$testPassword" `
+  --env POSTGRES_USER=lifeflow_test --env POSTGRES_DB=lifeflow_test `
+  --publish 127.0.0.1::5432 postgres:17
+```
+
+Дождитесь ответа `accepting connections` от `docker exec lifeflow-tests pg_isready -h 127.0.0.1 -U lifeflow_test -d lifeflow_test`. Затем выполните:
+
+```powershell
+$endpoint = docker port lifeflow-tests 5432/tcp
+$env:LIFEFLOW_TEST_DATABASE_URL = "postgresql://lifeflow_test:${testPassword}@${endpoint}/lifeflow_test"
+$previousDatabaseUrl = $env:DATABASE_URL
+try {
+    $env:DATABASE_URL = $env:LIFEFLOW_TEST_DATABASE_URL
+    uv run --locked alembic upgrade head
+    if ($LASTEXITCODE) { throw 'Alembic migration failed' }
+    uv run --locked python -m pytest -ra --cov --cov-report=term-missing
+    if ($LASTEXITCODE) { throw 'Tests failed' }
+} finally {
+    $env:DATABASE_URL = $previousDatabaseUrl
+    Remove-Item Env:LIFEFLOW_TEST_DATABASE_URL
+    docker rm -f lifeflow-tests
+    Remove-Variable testPassword, endpoint, previousDatabaseUrl
+}
+```
+
+Проверьте количество пройденных тестов и строку `TOTAL`. При полном прогоне тесты, которым нужна БД, выполняются, а покрытие кода приложения составляет минимум 60%. [ADR 005](docs/adr/005-testing-and-build.md)
+
+### Pre-commit и ручная проверка
 
 Перед первым коммитом установите проверки. Для Gitleaks должен быть запущен Docker.
 
@@ -199,8 +256,6 @@ Gitleaks проверяет изменения в индексе Git. Добав
 Для ручной проверки поднимите стек по [инструкции запуска](README.md#запуск-через-docker-compose). Проверьте `GET /`, `GET /health` и маршруты, затронутые изменением. При работающей базе `/health` отвечает HTTP 200. Для проверки отказа остановите `db` в тестовом стеке и убедитесь, что `/health` отвечает HTTP 503, затем восстановите стек.
 
 Для [запуска FastAPI без Compose](README.md#локальный-запуск-без-docker) задайте `DATABASE_URL`, примените `uv run --locked alembic upgrade head` и запустите `uv run --locked uvicorn main:app --reload`.
-
-> TODO (модуль 3): добавить запуск интеграционных тестов в CI.
 
 ## Встречи команды
 
